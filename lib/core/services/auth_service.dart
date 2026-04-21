@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 
 class AuthService {
@@ -5,11 +6,15 @@ class AuthService {
 
   Future<bool> authenticate() async {
     try {
+      // 🧪 DEV MODE BYPASS (IMPORTANT)
+      if (kDebugMode) {
+        return true;
+      }
+
       bool isAvailable = await _auth.canCheckBiometrics;
       bool isSupported = await _auth.isDeviceSupported();
 
       if (!isAvailable || !isSupported) {
-        // Allow access if no biometric (optional)
         return true;
       }
 
