@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:provider/provider.dart';
-import 'browser_provider.dart';
+import 'tab_provider.dart';
 
 class BrowserScreen extends StatefulWidget {
   const BrowserScreen({super.key});
@@ -11,67 +11,115 @@ class BrowserScreen extends StatefulWidget {
 }
 
 class _BrowserScreenState extends State<BrowserScreen> {
-  InAppWebViewController? webViewController;
   final TextEditingController urlController = TextEditingController();
 
   String formatUrl(String input) {
+    input = input.trim();
+
     if (input.startsWith("http://") || input.startsWith("https://")) {
       return input;
-    } else {
-      return "https://www.google.com/search?q=${Uri.encodeComponent(input)}";
     }
+
+    return "https://www.google.com/search?q=${Uri.encodeComponent(input)}";
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<BrowserProvider>(context);
+    final tabProvider = context.watch<TabProvider>();
+    final currentTab = tabProvider.currentTab;
+
+    // Keep URL bar synced
+    urlController.value = TextEditingValue(
+      text: currentTab.url,
+      selection: TextSelection.collapsed(offset: currentTab.url.length),
+    );
 
     return Scaffold(
       appBar: AppBar(
+        elevation: 1,
         title: TextField(
           controller: urlController,
+          textInputAction: TextInputAction.go,
           decoration: const InputDecoration(
             hintText: "Search or enter URL",
             border: InputBorder.none,
           ),
           onSubmitted: (value) {
-            String url = formatUrl(value);
-
-            webViewController?.loadUrl(
-              urlRequest: URLRequest(
-                url: WebUri(url), // ✅ FIXED
-              ),
-            );
-
-            provider.setUrl(url);
+            final url = formatUrl(value);
+            tabProvider.updateUrl(url);
           },
         ),
+        actions: [
+          // ➕ New Tab
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () {
+              tabProvider.addTab("https://google.com");
+            },
+          ),
+
+          // 📑 Tabs List
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.tab),
+                onPressed: () => _showTabs(context),
+              ),
+              Positioned(
+                right: 6,
+                top: 6,
+                child: CircleAvatar(
+                  radius: 8,
+                  child: Text(
+                    "${tabProvider.tabs.length}",
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                ),
+              )
+            ],
+          ),
+        ],
       ),
 
       body: Column(
         children: [
-          // 🔄 Loading bar
-          provider.progress < 1
-              ? LinearProgressIndicator(value: provider.progress)
+          // 🔄 Progress Bar
+          currentTab.progress < 1
+              ? LinearProgressIndicator(value: currentTab.progress)
               : const SizedBox(),
 
           // 🌐 WebView
           Expanded(
             child: InAppWebView(
-              initialUrlRequest: URLRequest(
-                url: WebUri(provider.url), // ✅ FIXED
+              key: ValueKey(currentTab.id),
+
+              initialSettings: InAppWebViewSettings(
+                javaScriptEnabled: true,
+                mediaPlaybackRequiresUserGesture: false,
+                useShouldOverrideUrlLoading: true,
               ),
-              onWebViewCreated: (controller) {
-                webViewController = controller;
-              },
+
+              initialUrlRequest: URLRequest(
+                url: WebUri(currentTab.url),
+              ),
+
+              onWebViewCreated: (controller) {},
+
               onLoadStart: (controller, url) {
-                urlController.text = url.toString();
+                if (url != null) {
+                  tabProvider.updateUrl(url.toString());
+                }
               },
-              onLoadStop: (controller, url) {
-                urlController.text = url.toString();
+
+              onLoadStop: (controller, url) async {
+                if (url != null) {
+                  tabProvider.updateUrl(url.toString());
+                }
               },
+
               onProgressChanged: (controller, progress) {
-                provider.setProgress(progress / 100);
+                tabProvider.updateProgress(progress / 100);
               },
             ),
           ),
@@ -79,34 +127,81 @@ class _BrowserScreenState extends State<BrowserScreen> {
       ),
 
       // 🔘 Bottom Navigation
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(vertical: 5),
+      bottomNavigationBar: _buildBottomBar(context),
+    );
+  }
+
+  Widget _buildBottomBar(BuildContext context) {
+    final tabProvider = context.read<TabProvider>();
+
+    return SafeArea(
+      child: Container(
+        height: 55,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () async {
-                if (await webViewController?.canGoBack() ?? false) {
-                  webViewController?.goBack();
-                }
+                // We cannot directly access controller per tab yet
+                // This will be improved in advanced phase
               },
             ),
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: () => webViewController?.reload(),
+              onPressed: () {
+                // Same limitation for now
+              },
             ),
             IconButton(
               icon: const Icon(Icons.arrow_forward),
-              onPressed: () async {
-                if (await webViewController?.canGoForward() ?? false) {
-                  webViewController?.goForward();
-                }
-              },
+              onPressed: () async {},
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // 📑 Tabs Bottom Sheet
+  void _showTabs(BuildContext context) {
+    final tabProvider = context.read<TabProvider>();
+
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return ListView.builder(
+          itemCount: tabProvider.tabs.length,
+          itemBuilder: (context, index) {
+            final tab = tabProvider.tabs[index];
+            final isActive = index == tabProvider.currentIndex;
+
+            return ListTile(
+              tileColor: isActive ? Colors.grey.shade200 : null,
+              leading: CircleAvatar(
+                child: Text("${index + 1}"),
+              ),
+              title: Text(
+                tab.url,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  tabProvider.closeTab(index);
+                  Navigator.pop(context);
+                },
+              ),
+              onTap: () {
+                tabProvider.switchTab(index);
+                Navigator.pop(context);
+              },
+            );
+          },
+        );
+      },
     );
   }
 }
