@@ -12,27 +12,66 @@ class LockScreen extends StatefulWidget {
 class _LockScreenState extends State<LockScreen> {
   final AuthService _authService = AuthService();
 
-  void _unlock() async {
+  bool isLoading = false;
+  String message = "Unlock your browser";
+
+  @override
+  void initState() {
+    super.initState();
+    _tryUnlock();
+  }
+
+  Future<void> _tryUnlock() async {
+    setState(() {
+      isLoading = true;
+      message = "Authenticating...";
+    });
+
     bool success = await _authService.authenticate();
+
+    if (!mounted) return;
 
     if (success) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const BrowserScreen()),
       );
+    } else {
+      setState(() {
+        isLoading = false;
+        message = "Authentication failed. Try again.";
+      });
     }
   }
 
   @override
-  void initState() {
-    super.initState();
-    _unlock();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text("🔒 Unlocking...")),
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            
+            const Icon(Icons.lock, size: 80),
+
+            const SizedBox(height: 20),
+
+            Text(
+              message,
+              style: const TextStyle(fontSize: 18),
+            ),
+
+            const SizedBox(height: 30),
+
+            isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: _tryUnlock,
+                    child: const Text("Unlock"),
+                  ),
+          ],
+        ),
+      ),
     );
   }
 }
