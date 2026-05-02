@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 
 class AuthService {
@@ -6,26 +5,31 @@ class AuthService {
 
   Future<bool> authenticate() async {
     try {
-      // 🧪 DEV MODE BYPASS (IMPORTANT)
-      if (kDebugMode) {
-        return true;
+      final isSupported = await _auth.isDeviceSupported();
+      final canCheck = await _auth.canCheckBiometrics;
+      final availableBiometrics = await _auth.getAvailableBiometrics();
+
+      if (!isSupported || !canCheck || availableBiometrics.isEmpty) {
+        print("❌ Biometrics not available");
+        return false;
       }
 
-      bool isAvailable = await _auth.canCheckBiometrics;
-      bool isSupported = await _auth.isDeviceSupported();
+      print("✅ Biometrics available: $availableBiometrics");
 
-      if (!isAvailable || !isSupported) {
-        return true;
-      }
-
-      return await _auth.authenticate(
+      final result = await _auth.authenticate(
         localizedReason: 'Unlock Browser',
         options: const AuthenticationOptions(
-          biometricOnly: false,
+          biometricOnly: true, // 🔥 force fingerprint only
           stickyAuth: true,
+          useErrorDialogs: true,
         ),
       );
+
+      print("RESULT: $result");
+
+      return result;
     } catch (e) {
+      print("AUTH ERROR: $e");
       return false;
     }
   }
