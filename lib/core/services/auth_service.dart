@@ -19,7 +19,7 @@ class AuthService {
       final result = await _auth.authenticate(
         localizedReason: 'Unlock Browser',
         options: const AuthenticationOptions(
-          biometricOnly: true, // 🔥 force fingerprint only
+          biometricOnly: false, // 🔥 force fingerprint only
           stickyAuth: true,
           useErrorDialogs: true,
         ),
