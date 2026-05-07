@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 
 class AuthService {
@@ -5,31 +6,38 @@ class AuthService {
 
   Future<bool> authenticate() async {
     try {
-      final isSupported = await _auth.isDeviceSupported();
-      final canCheck = await _auth.canCheckBiometrics;
-      final availableBiometrics = await _auth.getAvailableBiometrics();
+      // ✅ Check support
+      bool isSupported = await _auth.isDeviceSupported();
+      bool canCheck = await _auth.canCheckBiometrics();
 
-      if (!isSupported || !canCheck || availableBiometrics.isEmpty) {
-        print("❌ Biometrics not available");
+      if (!isSupported || !canCheck) {
+        debugPrint("Biometric not supported");
         return false;
       }
 
-      print("✅ Biometrics available: $availableBiometrics");
+      // ✅ Get available biometrics
+      List<BiometricType> biometrics =
+          await _auth.getAvailableBiometrics();
 
-      final result = await _auth.authenticate(
-        localizedReason: 'Unlock Browser',
+      debugPrint("Available biometrics: $biometrics");
+
+      if (biometrics.isEmpty) {
+        return false;
+      }
+
+      // ✅ Authentication
+      bool authenticated = await _auth.authenticate(
+        localizedReason: 'Unlock Aman Browser',
         options: const AuthenticationOptions(
-          biometricOnly: false, // 🔥 force fingerprint only
+          biometricOnly: false, // 🔥 IMPORTANT FIX
           stickyAuth: true,
           useErrorDialogs: true,
         ),
       );
 
-      print("RESULT: $result");
-
-      return result;
+      return authenticated;
     } catch (e) {
-      print("AUTH ERROR: $e");
+      debugPrint("AUTH ERROR: $e");
       return false;
     }
   }
