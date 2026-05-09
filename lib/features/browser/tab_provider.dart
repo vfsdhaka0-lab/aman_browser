@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'tab_model.dart';
 
 class TabProvider extends ChangeNotifier {
-  List<BrowserTab> tabs = [];
+  final List<BrowserTab> tabs = [];
 
   int currentIndex = 0;
 
@@ -50,5 +50,9 @@ class TabProvider extends ChangeNotifier {
   void updateProgress(double progress) {
     currentTab.progress = progress;
     notifyListeners();
+  }
+
+  void setController(controller) {
+    currentTab.controller = controller;
   }
 }
