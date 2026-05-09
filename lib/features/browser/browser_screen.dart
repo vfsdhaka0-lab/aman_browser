@@ -16,18 +16,18 @@ class _BrowserScreenState extends State<BrowserScreen> {
   String formatUrl(String input) {
     input = input.trim();
 
-    // Already complete URL
+    // Full URL
     if (input.startsWith("http://") ||
         input.startsWith("https://")) {
       return input;
     }
 
-    // Detect domain names
+    // Website domain
     if (input.contains(".") && !input.contains(" ")) {
       return "https://$input";
     }
 
-    // Otherwise Google search
+    // Google search
     return "https://www.google.com/search?q=${Uri.encodeComponent(input)}";
   }
 
@@ -53,13 +53,22 @@ class _BrowserScreenState extends State<BrowserScreen> {
             hintText: "Search or enter URL",
             border: InputBorder.none,
           ),
-          onSubmitted: (value) {
+          onSubmitted: (value) async {
             final url = formatUrl(value);
+
+            currentTab.url = url;
+
+            await currentTab.controller?.loadUrl(
+              urlRequest: URLRequest(
+                url: WebUri(url),
+              ),
+            );
+
             tabProvider.updateUrl(url);
           },
         ),
         actions: [
-          // ➕ Add Tab
+          // Add tab
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
@@ -67,7 +76,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             },
           ),
 
-          // 📑 Tabs Button
+          // Tabs button
           Stack(
             alignment: Alignment.center,
             children: [
@@ -93,14 +102,13 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
       body: Column(
         children: [
-          // 🔄 Loading Progress
+          // Loading bar
           currentTab.progress < 1
               ? LinearProgressIndicator(
                   value: currentTab.progress,
                 )
               : const SizedBox(),
 
-          // 🌐 WebView
           Expanded(
             child: InAppWebView(
               key: ValueKey(currentTab.id),
@@ -115,9 +123,21 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 url: WebUri(currentTab.url),
               ),
 
+              onWebViewCreated: (controller) {
+                tabProvider.setController(controller);
+              },
+
               shouldOverrideUrlLoading:
                   (controller, navigationAction) async {
-                return NavigationActionPolicy.ALLOW;
+                final uri = navigationAction.request.url;
+
+                if (uri != null) {
+                  await controller.loadUrl(
+                    urlRequest: URLRequest(url: uri),
+                  );
+                }
+
+                return NavigationActionPolicy.CANCEL;
               },
 
               onLoadStart: (controller, url) {
@@ -140,26 +160,40 @@ class _BrowserScreenState extends State<BrowserScreen> {
         ],
       ),
 
-      // 🔘 Bottom Navigation
+      // Bottom navigation
       bottomNavigationBar: SafeArea(
         child: Container(
           height: 55,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Row(
-            mainAxisAlignment:
-                MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
+              // Back
               IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () {},
+                onPressed: () async {
+                  if (await currentTab.controller?.canGoBack() ?? false) {
+                    currentTab.controller?.goBack();
+                  }
+                },
               ),
+
+              // Refresh
               IconButton(
                 icon: const Icon(Icons.refresh),
-                onPressed: () {},
+                onPressed: () {
+                  currentTab.controller?.reload();
+                },
               ),
+
+              // Forward
               IconButton(
                 icon: const Icon(Icons.arrow_forward),
-                onPressed: () {},
+                onPressed: () async {
+                  if (await currentTab.controller?.canGoForward() ?? false) {
+                    currentTab.controller?.goForward();
+                  }
+                },
               ),
             ],
           ),
@@ -168,7 +202,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
-  // 📑 Tabs Bottom Sheet
+  // Tabs list
   void _showTabs(BuildContext context) {
     final tabProvider = context.read<TabProvider>();
 
@@ -179,23 +213,19 @@ class _BrowserScreenState extends State<BrowserScreen> {
           itemCount: tabProvider.tabs.length,
           itemBuilder: (context, index) {
             final tab = tabProvider.tabs[index];
-            final isActive =
-                index == tabProvider.currentIndex;
+            final isActive = index == tabProvider.currentIndex;
 
             return ListTile(
               tileColor:
                   isActive ? Colors.grey.shade200 : null,
-
               leading: CircleAvatar(
                 child: Text("${index + 1}"),
               ),
-
               title: Text(
                 tab.url,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-
               trailing: IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () {
@@ -203,7 +233,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   Navigator.pop(context);
                 },
               ),
-
               onTap: () {
                 tabProvider.switchTab(index);
                 Navigator.pop(context);
