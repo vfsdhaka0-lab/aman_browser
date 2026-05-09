@@ -1,6 +1,8 @@
 class BrowserTab {
   final int id;
+
   String url;
+
   double progress;
 
   BrowserTab({
