@@ -3,6 +3,7 @@ import 'tab_model.dart';
 
 class TabProvider extends ChangeNotifier {
   List<BrowserTab> tabs = [];
+
   int currentIndex = 0;
 
   TabProvider() {
@@ -18,7 +19,9 @@ class TabProvider extends ChangeNotifier {
         url: url,
       ),
     );
+
     currentIndex = tabs.length - 1;
+
     notifyListeners();
   }
 
