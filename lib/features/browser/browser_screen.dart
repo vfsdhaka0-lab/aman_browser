@@ -16,10 +16,18 @@ class _BrowserScreenState extends State<BrowserScreen> {
   String formatUrl(String input) {
     input = input.trim();
 
-    if (input.startsWith("http://") || input.startsWith("https://")) {
+    // Already complete URL
+    if (input.startsWith("http://") ||
+        input.startsWith("https://")) {
       return input;
     }
 
+    // Detect domain names
+    if (input.contains(".") && !input.contains(" ")) {
+      return "https://$input";
+    }
+
+    // Otherwise Google search
     return "https://www.google.com/search?q=${Uri.encodeComponent(input)}";
   }
 
@@ -28,10 +36,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final tabProvider = context.watch<TabProvider>();
     final currentTab = tabProvider.currentTab;
 
-    // Keep URL bar synced
     urlController.value = TextEditingValue(
       text: currentTab.url,
-      selection: TextSelection.collapsed(offset: currentTab.url.length),
+      selection: TextSelection.collapsed(
+        offset: currentTab.url.length,
+      ),
     );
 
     return Scaffold(
@@ -50,7 +59,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           },
         ),
         actions: [
-          // ➕ New Tab
+          // ➕ Add Tab
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
@@ -58,7 +67,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             },
           ),
 
-          // 📑 Tabs List
+          // 📑 Tabs Button
           Stack(
             alignment: Alignment.center,
             children: [
@@ -76,7 +85,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                     style: const TextStyle(fontSize: 10),
                   ),
                 ),
-              )
+              ),
             ],
           ),
         ],
@@ -84,9 +93,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
       body: Column(
         children: [
-          // 🔄 Progress Bar
+          // 🔄 Loading Progress
           currentTab.progress < 1
-              ? LinearProgressIndicator(value: currentTab.progress)
+              ? LinearProgressIndicator(
+                  value: currentTab.progress,
+                )
               : const SizedBox(),
 
           // 🌐 WebView
@@ -104,7 +115,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 url: WebUri(currentTab.url),
               ),
 
-              onWebViewCreated: (controller) {},
+              shouldOverrideUrlLoading:
+                  (controller, navigationAction) async {
+                return NavigationActionPolicy.ALLOW;
+              },
 
               onLoadStart: (controller, url) {
                 if (url != null) {
@@ -127,38 +141,28 @@ class _BrowserScreenState extends State<BrowserScreen> {
       ),
 
       // 🔘 Bottom Navigation
-      bottomNavigationBar: _buildBottomBar(context),
-    );
-  }
-
-  Widget _buildBottomBar(BuildContext context) {
-    final tabProvider = context.read<TabProvider>();
-
-    return SafeArea(
-      child: Container(
-        height: 55,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () async {
-                // We cannot directly access controller per tab yet
-                // This will be improved in advanced phase
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () {
-                // Same limitation for now
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.arrow_forward),
-              onPressed: () async {},
-            ),
-          ],
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          height: 55,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            mainAxisAlignment:
+                MainAxisAlignment.spaceAround,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward),
+                onPressed: () {},
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -175,18 +179,23 @@ class _BrowserScreenState extends State<BrowserScreen> {
           itemCount: tabProvider.tabs.length,
           itemBuilder: (context, index) {
             final tab = tabProvider.tabs[index];
-            final isActive = index == tabProvider.currentIndex;
+            final isActive =
+                index == tabProvider.currentIndex;
 
             return ListTile(
-              tileColor: isActive ? Colors.grey.shade200 : null,
+              tileColor:
+                  isActive ? Colors.grey.shade200 : null,
+
               leading: CircleAvatar(
                 child: Text("${index + 1}"),
               ),
+
               title: Text(
                 tab.url,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+
               trailing: IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () {
@@ -194,6 +203,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   Navigator.pop(context);
                 },
               ),
+
               onTap: () {
                 tabProvider.switchTab(index);
                 Navigator.pop(context);
