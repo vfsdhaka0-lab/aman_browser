@@ -43,7 +43,16 @@ class _BrowserScreenState extends State<BrowserScreen> {
       ),
     );
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        if (await currentTab.controller?.canGoBack() ?? false) {
+          currentTab.controller?.goBack();
+          return false;
+        }
+
+        return true;
+      },
+      child: Scaffold(
       appBar: AppBar(
         elevation: 1,
         title: TextField(
@@ -134,8 +143,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 if (uri != null) {
                   await controller.loadUrl(
                     urlRequest: URLRequest(url: uri),
-                  );
-                }
+      ),
+    );
+  }
 
                 return NavigationActionPolicy.CANCEL;
               },
@@ -160,7 +170,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
         ],
       ),
 
-      // Bottom navigation
+      // Handle Android back button
+      floatingActionButton: null,
+
       bottomNavigationBar: SafeArea(
         child: Container(
           height: 55,
