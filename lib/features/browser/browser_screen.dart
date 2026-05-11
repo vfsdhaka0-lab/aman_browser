@@ -11,7 +11,8 @@ class BrowserScreen extends StatefulWidget {
 }
 
 class _BrowserScreenState extends State<BrowserScreen> {
-  final TextEditingController urlController = TextEditingController();
+  final TextEditingController urlController =
+      TextEditingController();
 
   String formatUrl(String input) {
     input = input.trim();
@@ -23,7 +24,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
 
     // Website domain
-    if (input.contains(".") && !input.contains(" ")) {
+    if (input.contains(".") &&
+        !input.contains(" ")) {
       return "https://$input";
     }
 
@@ -33,8 +35,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tabProvider = context.watch<TabProvider>();
-    final currentTab = tabProvider.currentTab;
+    final tabProvider =
+        context.watch<TabProvider>();
+
+    final currentTab =
+        tabProvider.currentTab;
 
     // Sync URL bar
     urlController.value = TextEditingValue(
@@ -46,7 +51,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
     return WillPopScope(
       onWillPop: () async {
-        if (await currentTab.controller?.canGoBack() ?? false) {
+        if (await currentTab.controller
+                ?.canGoBack() ??
+            false) {
           currentTab.controller?.goBack();
           return false;
         }
@@ -58,41 +65,56 @@ class _BrowserScreenState extends State<BrowserScreen> {
           elevation: 1,
           title: TextField(
             controller: urlController,
-            textInputAction: TextInputAction.go,
-            decoration: const InputDecoration(
-              hintText: "Search or enter URL",
+            textInputAction:
+                TextInputAction.go,
+            decoration:
+                const InputDecoration(
+              hintText:
+                  "Search or enter URL",
               border: InputBorder.none,
             ),
-            onSubmitted: (value) async {
-              final url = formatUrl(value);
+            onSubmitted:
+                (value) async {
+              final url =
+                  formatUrl(value);
 
               currentTab.url = url;
 
-              await currentTab.controller?.loadUrl(
+              await currentTab
+                  .controller
+                  ?.loadUrl(
                 urlRequest: URLRequest(
                   url: WebUri(url),
                 ),
               );
 
-              tabProvider.updateUrl(url);
+              tabProvider
+                  .updateUrl(url);
             },
           ),
           actions: [
-            // Add tab
+            // Add Tab
             IconButton(
-              icon: const Icon(Icons.add),
+              icon:
+                  const Icon(Icons.add),
               onPressed: () {
-                tabProvider.addTab("https://google.com");
+                tabProvider.addTab(
+                  "https://google.com",
+                );
               },
             ),
 
-            // Tabs list
+            // Tabs List
             Stack(
-              alignment: Alignment.center,
+              alignment:
+                  Alignment.center,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.tab),
-                  onPressed: () => _showTabs(context),
+                  icon: const Icon(
+                      Icons.tab),
+                  onPressed: () =>
+                      _showTabs(
+                          context),
                 ),
                 Positioned(
                   right: 6,
@@ -101,7 +123,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
                     radius: 8,
                     child: Text(
                       "${tabProvider.tabs.length}",
-                      style: const TextStyle(fontSize: 10),
+                      style:
+                          const TextStyle(
+                        fontSize: 10,
+                      ),
                     ),
                   ),
                 ),
@@ -112,93 +137,180 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
         body: Column(
           children: [
-            // Loading bar
+            // Loading Bar
             currentTab.progress < 1
                 ? LinearProgressIndicator(
-                    value: currentTab.progress,
+                    value: currentTab
+                        .progress,
                   )
                 : const SizedBox(),
 
             Expanded(
               child: InAppWebView(
-                key: ValueKey(currentTab.id),
+                key: ValueKey(
+                    currentTab.id),
 
-                initialSettings: InAppWebViewSettings(
-                  javaScriptEnabled: true,
-                  mediaPlaybackRequiresUserGesture: false,
-                  useShouldOverrideUrlLoading: true,
+                // 🔥 Keep alive for background play
+                keepAlive:
+                    InAppWebViewKeepAlive(),
+
+                initialSettings:
+                    InAppWebViewSettings(
+                  javaScriptEnabled:
+                      true,
+
+                  mediaPlaybackRequiresUserGesture:
+                      false,
+
+                  allowsInlineMediaPlayback:
+                      true,
+
+                  allowsBackgroundAudioPlaying:
+                      true,
+
+                  useShouldOverrideUrlLoading:
+                      true,
                 ),
 
-                initialUrlRequest: URLRequest(
-                  url: WebUri(currentTab.url),
+                initialUrlRequest:
+                    URLRequest(
+                  url: WebUri(
+                      currentTab.url),
                 ),
 
-                onWebViewCreated: (controller) {
-                  currentTab.controller = controller;
+                onWebViewCreated:
+                    (controller) {
+                  currentTab.controller =
+                      controller;
                 },
 
                 shouldOverrideUrlLoading:
-                    (controller, navigationAction) async {
-                  return NavigationActionPolicy.ALLOW;
+                    (controller,
+                        navigationAction) async {
+                  return NavigationActionPolicy
+                      .ALLOW;
                 },
 
-                onLoadStart: (controller, url) {
+                onLoadStart:
+                    (controller, url) {
                   if (url != null) {
-                    tabProvider.updateUrl(url.toString());
+                    tabProvider
+                        .updateUrl(
+                      url.toString(),
+                    );
                   }
                 },
 
-                onLoadStop: (controller, url) async {
+                onLoadStop:
+                    (controller,
+                        url) async {
                   if (url != null) {
-                    tabProvider.updateUrl(url.toString());
+                    tabProvider
+                        .updateUrl(
+                      url.toString(),
+                    );
+
+                    // 🔥 Desktop mode for YouTube
+                    if (url
+                        .toString()
+                        .contains(
+                            "youtube.com")) {
+                      await controller
+                          .setSettings(
+                        settings:
+                            InAppWebViewSettings(
+                          userAgent:
+                              "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+                        ),
+                      );
+                    }
+
+                    // 🔥 Prevent auto pause
+                    await controller
+                        .evaluateJavascript(
+                      source: """
+document.addEventListener('visibilitychange', function() {
+  document.querySelectorAll('video').forEach(v => {
+    v.play();
+  });
+});
+""",
+                    );
                   }
                 },
 
-                onProgressChanged: (controller, progress) {
-                  tabProvider.updateProgress(progress / 100);
+                onProgressChanged:
+                    (controller,
+                        progress) {
+                  tabProvider
+                      .updateProgress(
+                    progress / 100,
+                  );
                 },
               ),
             ),
           ],
         ),
 
-        // Bottom navigation
-        bottomNavigationBar: SafeArea(
+        // Bottom Navigation
+        bottomNavigationBar:
+            SafeArea(
           child: Container(
             height: 55,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 10,
+            ),
             child: Row(
               mainAxisAlignment:
-                  MainAxisAlignment.spaceAround,
+                  MainAxisAlignment
+                      .spaceAround,
               children: [
                 // Back
                 IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () async {
-                    if (await currentTab.controller
+                  icon: const Icon(
+                    Icons.arrow_back,
+                  ),
+                  onPressed:
+                      () async {
+                    if (await currentTab
+                            .controller
                             ?.canGoBack() ??
                         false) {
-                      currentTab.controller?.goBack();
+                      currentTab
+                          .controller
+                          ?.goBack();
                     }
                   },
                 ),
 
                 // Refresh
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(
+                    Icons.refresh,
+                  ),
                   onPressed: () {
-                    currentTab.controller?.reload();
+                    currentTab
+                        .controller
+                        ?.reload();
                   },
                 ),
 
                 // Forward
                 IconButton(
-                  icon: const Icon(Icons.arrow_forward),
-                  onPressed: () async {
-                    if (await currentTab.controller
+                  icon: const Icon(
+                    Icons
+                        .arrow_forward,
+                  ),
+                  onPressed:
+                      () async {
+                    if (await currentTab
+                            .controller
                             ?.canGoForward() ??
                         false) {
-                      currentTab.controller?.goForward();
+                      currentTab
+                          .controller
+                          ?.goForward();
                     }
                   },
                 ),
@@ -210,45 +322,69 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
-  // Tabs bottom sheet
-  void _showTabs(BuildContext context) {
-    final tabProvider = context.read<TabProvider>();
+  // Tabs Bottom Sheet
+  void _showTabs(
+      BuildContext context) {
+    final tabProvider =
+        context.read<TabProvider>();
 
     showModalBottomSheet(
       context: context,
       builder: (_) {
         return ListView.builder(
-          itemCount: tabProvider.tabs.length,
-          itemBuilder: (context, index) {
-            final tab = tabProvider.tabs[index];
+          itemCount:
+              tabProvider.tabs.length,
+          itemBuilder:
+              (context, index) {
+            final tab =
+                tabProvider.tabs[index];
+
             final isActive =
-                index == tabProvider.currentIndex;
+                index ==
+                    tabProvider
+                        .currentIndex;
 
             return ListTile(
-              tileColor:
-                  isActive ? Colors.grey.shade200 : null,
+              tileColor: isActive
+                  ? Colors
+                      .grey.shade200
+                  : null,
 
               leading: CircleAvatar(
-                child: Text("${index + 1}"),
+                child: Text(
+                    "${index + 1}"),
               ),
 
               title: Text(
                 tab.url,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow:
+                    TextOverflow
+                        .ellipsis,
               ),
 
               trailing: IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(
+                    Icons.close),
                 onPressed: () {
-                  tabProvider.closeTab(index);
-                  Navigator.pop(context);
+                  tabProvider
+                      .closeTab(
+                    index,
+                  );
+
+                  Navigator.pop(
+                      context);
                 },
               ),
 
               onTap: () {
-                tabProvider.switchTab(index);
-                Navigator.pop(context);
+                tabProvider
+                    .switchTab(
+                  index,
+                );
+
+                Navigator.pop(
+                    context);
               },
             );
           },
