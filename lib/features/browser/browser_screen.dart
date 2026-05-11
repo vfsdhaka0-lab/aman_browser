@@ -23,7 +23,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       return input;
     }
 
-    // Website domain
+    // Website
     if (input.contains(".") &&
         !input.contains(" ")) {
       return "https://$input";
@@ -104,17 +104,19 @@ class _BrowserScreenState extends State<BrowserScreen> {
               },
             ),
 
-            // Tabs List
+            // Tabs
             Stack(
               alignment:
                   Alignment.center,
               children: [
                 IconButton(
                   icon: const Icon(
-                      Icons.tab),
+                    Icons.tab,
+                  ),
                   onPressed: () =>
                       _showTabs(
-                          context),
+                    context,
+                  ),
                 ),
                 Positioned(
                   right: 6,
@@ -137,7 +139,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
         body: Column(
           children: [
-            // Loading Bar
+            // Loading bar
             currentTab.progress < 1
                 ? LinearProgressIndicator(
                     value: currentTab
@@ -148,9 +150,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
             Expanded(
               child: InAppWebView(
                 key: ValueKey(
-                    currentTab.id),
+                  currentTab.id,
+                ),
 
-                // 🔥 Keep alive for background play
                 keepAlive:
                     InAppWebViewKeepAlive(),
 
@@ -165,17 +167,21 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   allowsInlineMediaPlayback:
                       true,
 
-                  //allowsBackgroundAudioPlaying:
-                     // true,
-
                   useShouldOverrideUrlLoading:
                       true,
+
+                  useHybridComposition:
+                      true,
+
+                  userAgent:
+                      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
                 ),
 
                 initialUrlRequest:
                     URLRequest(
                   url: WebUri(
-                      currentTab.url),
+                    currentTab.url,
+                  ),
                 ),
 
                 onWebViewCreated:
@@ -210,30 +216,23 @@ class _BrowserScreenState extends State<BrowserScreen> {
                       url.toString(),
                     );
 
-                    // 🔥 Desktop mode for YouTube
-                    if (url
-                        .toString()
-                        .contains(
-                            "youtube.com")) {
-                      await controller
-                          .setSettings(
-                        settings:
-                            InAppWebViewSettings(
-                          userAgent:
-                              "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-                        ),
-                      );
-                    }
-
-                    // 🔥 Prevent auto pause
+                    // Keep videos playing
                     await controller
                         .evaluateJavascript(
                       source: """
-document.addEventListener('visibilitychange', function() {
-  document.querySelectorAll('video').forEach(v => {
-    v.play();
+(function() {
+
+function keepPlaying() {
+  document.querySelectorAll('video').forEach(video => {
+    video.play();
   });
-});
+}
+
+document.addEventListener('visibilitychange', keepPlaying);
+
+setInterval(keepPlaying, 1000);
+
+})();
 """,
                     );
                   }
@@ -352,7 +351,8 @@ document.addEventListener('visibilitychange', function() {
 
               leading: CircleAvatar(
                 child: Text(
-                    "${index + 1}"),
+                  "${index + 1}",
+                ),
               ),
 
               title: Text(
@@ -365,7 +365,8 @@ document.addEventListener('visibilitychange', function() {
 
               trailing: IconButton(
                 icon: const Icon(
-                    Icons.close),
+                  Icons.close,
+                ),
                 onPressed: () {
                   tabProvider
                       .closeTab(
@@ -373,7 +374,8 @@ document.addEventListener('visibilitychange', function() {
                   );
 
                   Navigator.pop(
-                      context);
+                    context,
+                  );
                 },
               ),
 
@@ -384,7 +386,8 @@ document.addEventListener('visibilitychange', function() {
                 );
 
                 Navigator.pop(
-                    context);
+                  context,
+                );
               },
             );
           },
