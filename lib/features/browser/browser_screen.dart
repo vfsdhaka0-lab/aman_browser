@@ -165,8 +165,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   allowsInlineMediaPlayback:
                       true,
 
-                  allowsBackgroundAudioPlaying:
-                      true,
+                  //allowsBackgroundAudioPlaying:
+                     // true,
 
                   useShouldOverrideUrlLoading:
                       true,
