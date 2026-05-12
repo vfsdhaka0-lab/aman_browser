@@ -44,7 +44,7 @@ jobs:
 
       # Build APK
       - name: Build APK
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release --target-platform android-arm64
 
       # Upload APKs
       - name: Upload APK
