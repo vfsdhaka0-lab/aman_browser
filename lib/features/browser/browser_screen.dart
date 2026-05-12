@@ -7,10 +7,12 @@ class BrowserScreen extends StatefulWidget {
   const BrowserScreen({super.key});
 
   @override
-  State<BrowserScreen> createState() => _BrowserScreenState();
+  State<BrowserScreen> createState() =>
+      _BrowserScreenState();
 }
 
-class _BrowserScreenState extends State<BrowserScreen> {
+class _BrowserScreenState
+    extends State<BrowserScreen> {
   final TextEditingController urlController =
       TextEditingController();
 
@@ -153,6 +155,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   currentTab.id,
                 ),
 
+                // Keep webview alive
                 keepAlive:
                     InAppWebViewKeepAlive(),
 
@@ -216,21 +219,60 @@ class _BrowserScreenState extends State<BrowserScreen> {
                       url.toString(),
                     );
 
-                    // Keep videos playing
+                    // Smart background playback
                     await controller
                         .evaluateJavascript(
                       source: """
 (function() {
 
-function keepPlaying() {
-  document.querySelectorAll('video').forEach(video => {
-    video.play();
-  });
+let wasPlayingBeforeHidden = false;
+
+function getVideos() {
+  return document.querySelectorAll('video');
 }
 
-document.addEventListener('visibilitychange', keepPlaying);
+// Track user actions
+getVideos().forEach(video => {
 
-setInterval(keepPlaying, 1000);
+  video.addEventListener('play', () => {
+    video.dataset.userPaused = "false";
+  });
+
+  video.addEventListener('pause', () => {
+
+    // If app visible, user paused manually
+    if (!document.hidden) {
+      video.dataset.userPaused = "true";
+    }
+  });
+
+});
+
+// Handle background/foreground
+document.addEventListener('visibilitychange', function() {
+
+  getVideos().forEach(video => {
+
+    // App minimized
+    if (document.hidden) {
+
+      wasPlayingBeforeHidden =
+          !video.paused;
+
+    } else {
+
+      // Resume ONLY if not manually paused
+      if (
+        wasPlayingBeforeHidden &&
+        video.dataset.userPaused != "true"
+      ) {
+        video.play();
+      }
+
+    }
+  });
+
+});
 
 })();
 """,
@@ -251,7 +293,7 @@ setInterval(keepPlaying, 1000);
           ],
         ),
 
-        // Bottom Navigation
+        // Bottom navigation
         bottomNavigationBar:
             SafeArea(
           child: Container(
