@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:provider/provider.dart';
 import 'tab_provider.dart';
@@ -12,27 +13,75 @@ class BrowserScreen extends StatefulWidget {
 }
 
 class _BrowserScreenState
-    extends State<BrowserScreen> {
+    extends State<BrowserScreen>
+    with WidgetsBindingObserver {
   final TextEditingController urlController =
       TextEditingController();
+
+  bool appInBackground = false;
 
   String formatUrl(String input) {
     input = input.trim();
 
-    // Full URL
     if (input.startsWith("http://") ||
         input.startsWith("https://")) {
       return input;
     }
 
-    // Website
     if (input.contains(".") &&
         !input.contains(" ")) {
       return "https://$input";
     }
 
-    // Google search
     return "https://www.google.com/search?q=${Uri.encodeComponent(input)}";
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance
+        .addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance
+        .removeObserver(this);
+
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(
+      AppLifecycleState state) async {
+    final tabProvider =
+        context.read<TabProvider>();
+
+    final controller =
+        tabProvider.currentTab.controller;
+
+    if (state ==
+        AppLifecycleState.paused) {
+      appInBackground = true;
+
+      // Resume videos when minimized
+      await controller
+          ?.evaluateJavascript(
+        source: """
+document.querySelectorAll('video').forEach(v => {
+  if (!v.paused) {
+    v.play();
+  }
+});
+""",
+      );
+    }
+
+    if (state ==
+        AppLifecycleState.resumed) {
+      appInBackground = false;
+    }
   }
 
   @override
@@ -43,7 +92,6 @@ class _BrowserScreenState
     final currentTab =
         tabProvider.currentTab;
 
-    // Sync URL bar
     urlController.value = TextEditingValue(
       text: currentTab.url,
       selection: TextSelection.collapsed(
@@ -95,7 +143,6 @@ class _BrowserScreenState
             },
           ),
           actions: [
-            // Add Tab
             IconButton(
               icon:
                   const Icon(Icons.add),
@@ -106,7 +153,6 @@ class _BrowserScreenState
               },
             ),
 
-            // Tabs
             Stack(
               alignment:
                   Alignment.center,
@@ -141,7 +187,6 @@ class _BrowserScreenState
 
         body: Column(
           children: [
-            // Loading bar
             currentTab.progress < 1
                 ? LinearProgressIndicator(
                     value: currentTab
@@ -155,7 +200,6 @@ class _BrowserScreenState
                   currentTab.id,
                 ),
 
-                // Keep webview alive
                 keepAlive:
                     InAppWebViewKeepAlive(),
 
@@ -176,8 +220,9 @@ class _BrowserScreenState
                   useHybridComposition:
                       true,
 
+                  // MOBILE layout
                   userAgent:
-                      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+                      "Mozilla/5.0 (Linux; Android 11; Mobile) AppleWebKit/537.36 Chrome/120 Safari/537.36",
                 ),
 
                 initialUrlRequest:
@@ -213,71 +258,104 @@ class _BrowserScreenState
                 onLoadStop:
                     (controller,
                         url) async {
-                  if (url != null) {
-                    tabProvider
-                        .updateUrl(
-                      url.toString(),
-                    );
+                  if (url == null) {
+                    return;
+                  }
 
-                    // Smart background playback
+                  final currentUrl =
+                      url.toString();
+
+                  tabProvider.updateUrl(
+                    currentUrl,
+                  );
+
+                  // YouTube desktop ONLY
+                  if (currentUrl.contains(
+                      "youtube.com")) {
                     await controller
-                        .evaluateJavascript(
-                      source: """
+                        .setSettings(
+                      settings:
+                          InAppWebViewSettings(
+                        userAgent:
+                            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+                      ),
+                    );
+                  } else {
+                    // restore mobile UA
+                    await controller
+                        .setSettings(
+                      settings:
+                          InAppWebViewSettings(
+                        userAgent:
+                            "Mozilla/5.0 (Linux; Android 11; Mobile) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+                      ),
+                    );
+                  }
+
+                  // Smart playback logic
+                  await controller
+                      .evaluateJavascript(
+                    source: """
 (function() {
 
-let wasPlayingBeforeHidden = false;
+function setupVideos() {
 
-function getVideos() {
-  return document.querySelectorAll('video');
+document.querySelectorAll('video').forEach(video => {
+
+if (video.dataset.listenerAdded === "true") {
+  return;
 }
 
-// Track user actions
-getVideos().forEach(video => {
+video.dataset.listenerAdded = "true";
 
-  video.addEventListener('play', () => {
-    video.dataset.userPaused = "false";
-  });
+video.addEventListener('pause', () => {
 
-  video.addEventListener('pause', () => {
-
-    // If app visible, user paused manually
-    if (!document.hidden) {
-      video.dataset.userPaused = "true";
-    }
-  });
+  if (!document.hidden) {
+    video.dataset.userPaused = "true";
+  }
 
 });
 
-// Handle background/foreground
-document.addEventListener('visibilitychange', function() {
-
-  getVideos().forEach(video => {
-
-    // App minimized
-    if (document.hidden) {
-
-      wasPlayingBeforeHidden =
-          !video.paused;
-
-    } else {
-
-      // Resume ONLY if not manually paused
-      if (
-        wasPlayingBeforeHidden &&
-        video.dataset.userPaused != "true"
-      ) {
-        video.play();
-      }
-
-    }
-  });
+video.addEventListener('play', () => {
+  video.dataset.userPaused = "false";
+});
 
 });
+
+}
+
+setupVideos();
+
+document.addEventListener(
+'visibilitychange',
+function() {
+
+document.querySelectorAll('video')
+.forEach(video => {
+
+if (
+document.hidden &&
+!video.paused
+) {
+video.dataset.wasPlaying = "true";
+}
+
+if (
+!document.hidden &&
+video.dataset.wasPlaying === "true" &&
+video.dataset.userPaused !== "true"
+) {
+video.play();
+}
+
+});
+
+}
+);
 
 })();
 """,
-                    );
-                  }
+                  );
                 },
 
                 onProgressChanged:
@@ -293,7 +371,6 @@ document.addEventListener('visibilitychange', function() {
           ],
         ),
 
-        // Bottom navigation
         bottomNavigationBar:
             SafeArea(
           child: Container(
@@ -307,7 +384,6 @@ document.addEventListener('visibilitychange', function() {
                   MainAxisAlignment
                       .spaceAround,
               children: [
-                // Back
                 IconButton(
                   icon: const Icon(
                     Icons.arrow_back,
@@ -325,7 +401,6 @@ document.addEventListener('visibilitychange', function() {
                   },
                 ),
 
-                // Refresh
                 IconButton(
                   icon: const Icon(
                     Icons.refresh,
@@ -337,7 +412,6 @@ document.addEventListener('visibilitychange', function() {
                   },
                 ),
 
-                // Forward
                 IconButton(
                   icon: const Icon(
                     Icons
@@ -363,7 +437,6 @@ document.addEventListener('visibilitychange', function() {
     );
   }
 
-  // Tabs Bottom Sheet
   void _showTabs(
       BuildContext context) {
     final tabProvider =
@@ -411,9 +484,7 @@ document.addEventListener('visibilitychange', function() {
                 ),
                 onPressed: () {
                   tabProvider
-                      .closeTab(
-                    index,
-                  );
+                      .closeTab(index);
 
                   Navigator.pop(
                     context,
@@ -423,9 +494,7 @@ document.addEventListener('visibilitychange', function() {
 
               onTap: () {
                 tabProvider
-                    .switchTab(
-                  index,
-                );
+                    .switchTab(index);
 
                 Navigator.pop(
                   context,
