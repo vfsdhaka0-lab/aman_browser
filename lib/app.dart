@@ -2,9 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'features/browser/tab_provider.dart';
 import 'features/browser/browser_screen.dart';
+import 'features/auth/lock_screen.dart';
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool unlocked = false;
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +22,15 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: const BrowserScreen(),
+        home: unlocked
+            ? const BrowserScreen()
+            : LockScreen(
+                onSuccess: () {
+                  setState(() {
+                    unlocked = true;
+                  });
+                },
+              ),
       ),
     );
   }
