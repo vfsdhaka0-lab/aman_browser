@@ -12,13 +12,14 @@ environment:
 
 
 dependencies:
-  flutter:
-    sdk: flutter
+  media_kit: ^1.1.10
+  media_kit_video: ^1.2.4
+  media_kit_libs_android_video: ^1.1.4
 
-  flutter_inappwebview: ^6.1.5
-  provider: ^6.0.5
-  flutter_secure_storage: ^9.0.0
-  local_auth: ^2.1.6
+  audio_service: ^0.18.12
+  just_audio: ^0.9.36
+
+  youtube_explode_dart: ^2.0.2
 
 dev_dependencies:
   flutter_test:
