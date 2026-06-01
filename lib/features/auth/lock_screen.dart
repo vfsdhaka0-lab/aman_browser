@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
+import 'pin_screen.dart';
 
 class LockScreen extends StatefulWidget {
   final VoidCallback onSuccess;
@@ -13,21 +14,19 @@ class LockScreen extends StatefulWidget {
 class _LockScreenState extends State<LockScreen> {
   final LocalAuthentication auth = LocalAuthentication();
 
-  String message = "Authenticate to continue";
+  String message = "Unlock with fingerprint";
 
   Future<void> authenticate() async {
     try {
-      final isAvailable = await auth.canCheckBiometrics;
+      final available = await auth.canCheckBiometrics;
 
-      if (!isAvailable) {
-        setState(() {
-          message = "Biometric not available";
-        });
+      if (!available) {
+        openPin();
         return;
       }
 
       final success = await auth.authenticate(
-        localizedReason: "Unlock your browser",
+        localizedReason: "Unlock browser",
         options: const AuthenticationOptions(
           biometricOnly: true,
           stickyAuth: true,
@@ -37,15 +36,22 @@ class _LockScreenState extends State<LockScreen> {
       if (success) {
         widget.onSuccess();
       } else {
-        setState(() {
-          message = "Authentication failed";
-        });
+        openPin();
       }
-    } catch (e) {
-      setState(() {
-        message = "Error: $e";
-      });
+    } catch (_) {
+      openPin();
     }
+  }
+
+  void openPin() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PinScreen(
+          onSuccess: widget.onSuccess,
+        ),
+      ),
+    );
   }
 
   @override
@@ -59,18 +65,9 @@ class _LockScreenState extends State<LockScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.lock, size: 80, color: Colors.white),
-            const SizedBox(height: 20),
-            Text(message, style: const TextStyle(color: Colors.white)),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: authenticate,
-              child: const Text("Try Again"),
-            )
-          ],
+        child: Text(
+          message,
+          style: const TextStyle(color: Colors.white),
         ),
       ),
     );
